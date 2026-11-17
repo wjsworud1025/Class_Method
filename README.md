@@ -50,6 +50,64 @@ Python 클래스와 객체, 생성자·소멸자, 접근 제어를 학습하고 
 
 급여 예제의 세금 10%는 계산 연습을 위한 가정입니다. 경력은 각 이력의 종료 연도와 시작 연도의 차이를 더하며, 중복 기간은 별도로 처리하지 않습니다.
 
+## 설계도를 따라 진행한 코딩 실습
+
+**아래 설계도 4장을 참고하여 클래스의 속성·메서드·객체 관계를 코드로 옮기는 방식으로 실습했습니다.** `object_ex05.py`부터 `object_ex08.py`까지 단일 사원 클래스 → 급여 객체 분리 → 근무 이력 추가 → 부서·회사 집계 순서로 확장했습니다. 이미지는 학습에 사용한 설계 자료이며, 아래 설명은 현재 저장된 코드와 비교한 내용입니다.
+
+### 1단계 — Employee 하나로 급여 계산하기
+
+![Employee의 속성과 급여 계산 메서드, 객체 리스트와 반복 출력 설계도](docs/images/01-employee.png)
+
+대응 파일: [object_ex05.py](object_practice/object_ex05.py)
+
+설계도의 `name`, `base_pay`, `bonus`, `overtime`을 생성자에서 저장하고, `get_total()`로 세 급여 항목을 합산하도록 구현했습니다. `get_tax()`는 총액의 10%, `get_net()`은 총액에서 세금을 뺀 값을 반환합니다. `to_string()`에서 각 계산 메서드를 호출해 출력 문자열을 만들고, 사원 객체 5개를 리스트에 넣어 `for` 문으로 출력했습니다.
+
+그림의 호출 체인은 계산 간 의존성을 요약합니다. 실제 코드의 `to_string()`은 `get_total()`, `get_tax()`, `get_net()`을 각각 호출하며, `get_net()`은 다시 `get_total()`과 `get_tax()`를 호출합니다.
+
+현재 코드에서는 `bonus`를 `bouns`로 표기하고, 샘플 이름 5개를 모두 `김민수`로 사용합니다. 설계도와 이름은 다르지만 급여 입력값과 계산 구조는 대응합니다.
+
+### 2단계 — Employee가 Salary 객체를 갖도록 분리하기
+
+![Employee가 Salary 객체를 보유하고 급여 계산을 위임하는 has-a 설계도](docs/images/02-employee-salary.png)
+
+대응 파일: [object_ex06.py](object_practice/object_ex06.py)
+
+급여 속성과 계산 메서드를 `Salary`로 옮기고, `Employee`에는 `name`, `dept`, `salary`를 두었습니다. 설계도의 has-a 화살표를 `self.salary = salary`로 구현한 것입니다. `Employee(..., Salary(...))` 형태로 객체를 조합하고, `Employee.to_string()`에서 `self.salary.get_total()` 등의 메서드를 호출합니다.
+
+사원 객체 5개를 순회해 이름·부서·총액·세금·실수령액을 출력합니다. 급여 값은 설계도와 같으며, 샘플 부서 배정은 실제 코드에서 다르게 지정했습니다. 이 단계에서는 상속이 아닌 **객체를 속성으로 보유하는 합성**을 연습했습니다.
+
+### 3단계 — WorkHistory 목록으로 일대다 관계 구현하기
+
+![Employee가 Salary 하나와 여러 WorkHistory 객체를 보유하는 설계도](docs/images/03-work-history.png)
+
+대응 파일: [object_ex07.py](object_practice/object_ex07.py)
+
+설계도의 `histories → [WorkHistory, ...]`를 인스턴스별 빈 리스트로 만들고, `add_history()`에서 이력 객체를 추가했습니다. `WorkHistory.get_years()`는 종료 연도에서 시작 연도를 뺍니다. `Employee.get_career()`는 이력 목록을 순회해 근무 연수를 합산합니다.
+
+급여 객체 하나를 보유하는 관계와 여러 근무 이력을 보유하는 관계를 함께 구현했습니다. 최서연의 4년·4년·3년 이력을 더해 11년을 계산하고, 이력이 없는 사원은 0년 및 `이력 없음(신입)`으로 출력합니다. 사원별 출력에 이어 각 사원의 이력을 순회하는 중첩 반복도 실습했습니다.
+
+설계도는 사원 5명을 예시로 들지만 실제 코드는 3명이며, 경력은 순서대로 7년·0년·11년입니다. `Salary` 내부의 기본급 속성 이름은 설계도의 `base_pay`와 달리 `base_py`로 작성되어 있습니다.
+
+### 4단계 — Department와 Company로 집계 범위 확장하기
+
+![Company와 Department, Employee, WorkHistory, Salary의 계층 관계 및 회사 보고서 설계도](docs/images/04-company.png)
+
+대응 파일: [object_ex08.py](object_practice/object_ex08.py)
+
+`Department.employees`에 사원 객체를, `Company.departments`에 부서 객체를 저장하도록 구현했습니다. `add_employee()`와 `add_department()`로 관계를 구성한 뒤, 부서는 사원을 순회해 급여 총액과 평균 경력을 계산하고 회사는 부서를 순회해 전체 인원과 급여를 합산합니다. `Company.print_report()`는 이 메서드들을 호출해 부서별 보고서를 출력합니다.
+
+설계도의 회사 → 부서 → 사원 구조를 따라 집계 책임을 나눴으며, 사원이 없는 마케팅팀도 추가해 평균 경력 계산 시 0으로 나누지 않도록 처리했습니다.
+
+| 비교 항목 | 설계도 | 현재 코드 |
+| --- | --- | --- |
+| 전체 인원 / 급여 총액 | 5명 / 1900 | 3명 / 1145 |
+| 부서별 인원 | 개발 2명, 나머지 각 1명 | 개발·인사·영업 각 1명, 마케팅 0명 |
+| 평균 경력 | 개발 9년, 인사 4년, 영업 0년, 마케팅 3년 | 개발 7년, 인사 0년, 영업 11년, 마케팅 0년 |
+| `Department.print_members()` | 설계에 포함 | 미구현 |
+| `WorkHistory.to_string()` | 설계에 포함 | 07번에는 구현, 08번에는 없음 |
+
+설계도의 모든 항목과 예시 데이터를 동일하게 복제한 것은 아닙니다. **설계도의 핵심 객체 관계와 계산 흐름을 따라 코딩하면서 샘플 데이터를 바꾸고, 빈 부서 처리까지 실습한 기록**입니다.
+
 ## 실행 방법
 
 ### Python 스크립트
